@@ -5,7 +5,7 @@ if (process.env.NODE_ENV !== 'production' || process.env.NODE_ENV !== 'prod') {
 } else {
   dotenv.config();
 }
-const { PORT, ACCESS_SECRET, REFRESH_SECRER, NODE_ENV } = process.env;
+const { PORT, ACCESS_SECRET, REFRESH_SECRER, NODE_ENV, LOCAL_MONGODB_SINGLESET } = process.env;
 
 module.exports = {
   env: {
@@ -13,5 +13,6 @@ module.exports = {
     ACCESS_SECRET,
     REFRESH_SECRER,
     NODE_ENV,
+    LOCAL_MONGODB_SINGLESET
   },
 };
