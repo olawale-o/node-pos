@@ -121,4 +121,45 @@ router.get('/pending', async (req, res, next) => {
     console.log(error);
   }
 });
+
+router.get('/suggestion', async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    const suggestions = await Friend.aggregate([
+      { $match:  { users: { $nin: [ObjectID(q)] } } },
+      {
+        $project: {
+          "users": 1,
+          "_id": 0
+        }
+      },
+      {
+        $unwind: "$users"
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "users",
+          foreignField: "_id",
+          as: "friend_suggestions"
+        }
+      },
+      {
+        $project: {
+          suggestion: { $arrayElemAt: [ "$friend_suggestions", 0 ] },
+        }
+      },
+      {
+        $replaceRoot: { newRoot: "$suggestion" }
+      }
+    ]).toArray();
+
+    return res.status(200).json({
+      suggestions
+    })
+
+  } catch (error) {
+    console.log(error);
+  }
+});
 module.exports = router;
