@@ -12,7 +12,10 @@ const IO = new Server(server, {
   cors: {
     origin: "http://localhost:3000"
   }
-})
+});
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.use(cors());
 
@@ -24,7 +27,8 @@ dbConnection(MongoClient)
 }).catch((err) => {
   console.log(err)
 })
-// .finally(() => dbConnection);
+
+app.use('/api/v1/users', require('./userRoute'));
 
 app.get('/api', (req, res) => {
   res.json({
