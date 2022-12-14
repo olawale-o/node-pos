@@ -85,7 +85,6 @@ router.post('/friends/accept', async (req, res, next) => {
 router.get('/pending', async (req, res, next) => {
   try {
     const { q } = req.query;
-    console.log(ObjectID(q))
     const friends = await Friend.aggregate([
       { $match: { $and: [ { users: { $in: [ObjectID(q)] } }, {  status: 'request' } ] } },
       {
@@ -125,8 +124,41 @@ router.get('/pending', async (req, res, next) => {
 router.get('/suggestion', async (req, res, next) => {
   try {
     const { q } = req.query;
-    const suggestions = await Friend.aggregate([
-      { $match:  { users: { $nin: [ObjectID(q)] } } },
+    // const suggestions = await Friend.aggregate([
+    //   { $match:  { users: { $nin: [ObjectID(q)] } } },
+    //   {
+    //     $project: {
+    //       "users": 1,
+    //       "_id": 0
+    //     }
+    //   },
+    //   {
+    //     $unwind: "$users"
+    //   },
+    //   {
+    //     $group: {
+    //       _id: "$users",
+    //     }
+    //   },
+    //   {
+    //     $lookup: {
+    //       from: "users",
+    //       localField: "_id",
+    //       foreignField: "_id",
+    //       as: "friend_suggestions"
+    //     }
+    //   },
+    //   {
+    //     $project: {
+    //       suggestion: { $arrayElemAt: [ "$friend_suggestions", 0 ] },
+    //     }
+    //   },
+    //   {
+    //     $replaceRoot: { newRoot: "$suggestion" }
+    //   }
+    // ]).toArray();
+    const friends = await Friend.aggregate([
+      { $match:  { users: { $in: [ObjectID(q)] } } },
       {
         $project: {
           "users": 1,
@@ -134,29 +166,54 @@ router.get('/suggestion', async (req, res, next) => {
         }
       },
       {
-        $unwind: "$users"
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "users",
-          foreignField: "_id",
-          as: "friend_suggestions"
-        }
+        $project: {
+          users: {
+            $filter: {
+               input: "$users",
+               as: "user",
+               cond: { $ne: [ "$$user", ObjectID(q) ] }
+            }
+         }
+        },
       },
       {
         $project: {
-          suggestion: { $arrayElemAt: [ "$friend_suggestions", 0 ] },
+          user: { $arrayElemAt: [ "$users", 0 ] },
         }
-      },
-      {
-        $replaceRoot: { newRoot: "$suggestion" }
       }
+      // {
+      //   $unwind: "$users"
+      // },
+      // {
+      //   $group: {
+      //     _id: "$users",
+      //   }
+      // },
+      // {
+      //   $lookup: {
+      //     from: "users",
+      //     localField: "_id",
+      //     foreignField: "_id",
+      //     as: "friend_suggestions"
+      //   }
+      // },
+      // {
+      //   $project: {
+      //     suggestion: { $arrayElemAt: [ "$friend_suggestions", 0 ] },
+      //   }
+      // },
+      // {
+      //   $replaceRoot: { newRoot: "$suggestion" }
+      // }
     ]).toArray();
-
-    return res.status(200).json({
-      suggestions
-    })
+    const users = await User.aggregate([
+      { $match:  { _id:  { $ne: ObjectID(q) } } },
+    ]).toArray();
+    const suggestionIds = friends.map((suggestion) => {
+      return suggestion.user.toString()
+    });
+    const suggestions = users.filter((user) => !suggestionIds.includes(user._id.toString()));
+    return res.status(200).json({suggestions})
 
   } catch (error) {
     console.log(error);
