@@ -1,12 +1,13 @@
 const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const { MongoClient } = require('mongodb');
 const { ObjectID } = require('bson');
+const { v4: uuidv4 } = require('uuid');
 
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const User = client.db('socialdb').collection('users');
 
-let users = [];
+//let users = [];
 let onlineUsers = {};
 
 const sessions = new Map();
@@ -51,7 +52,7 @@ module.exports = function(IO) {
     const sessionId = socket.handshake.auth.sessionId;
     if (sessionId) {
       const session = findSession(sessionId);
-      console.log('session', session)
+      // console.log('session', session)
       if (session) {
         socket.sessionId = sessionId;
         socket.userId = session.userId
@@ -62,10 +63,10 @@ module.exports = function(IO) {
       }
     }
     const user = socket.handshake.auth.user;
-    console.log('line 64', user);
     if (!user) {
-      return next(new Error('invalid user details'));
+     return next(new Error('invalid user details'));
     }
+    // console.log('line 69', user);
     socket.username = user.username;
     socket.userId = user._id;
     socket.sessionId = user._id;
@@ -77,30 +78,30 @@ module.exports = function(IO) {
       userId: socket.userId, username: socket.username,
       connected: true,
     })
-    socket.join(socket.userId);
+    console.log(socket.userId)
+    await socket.join(socket.userId);
+    await socket.emit('session', { sessionId: socket.sessionId, userId: socket.userId, username: socket.username });
     // all connected users
     const users = []
     // const userMessages = getMessagesForUser(socket.userId)
-    for (let [id, socket] of IO.of('/').sockets) {
-      users.push({
-        userId: socket.userId,
-        username: socket.username
-      })
-    }
-    // findSessions().forEach((session) => {
-    //   if (session.userId !== socket.userId) {
-    //     users.push({
-    //       userId: session.userId,
-    //       username: session.username,
-    //       connected: session.connected,
-    //       messages: userMessages.get(session.userId) || [],
-    //     })
-    //   }
-    // })
-    socket.emit("users", users);
+    findSessions().forEach((session) => {
+      if (session.userId !== socket.userId) {
+        users.push({
+          userId: session.userId,
+          username: session.username,
+          connected: session.connected,
+          // messages: userMessages.get(session.userId) || [],
+        })
+      }
+    })
+    console.log('users', users);
+    await socket.emit("users", users);
 
-    socket.emit('session', { sessionId: socket.sessionId, userId: socket.userId, username: socket.username });
-
+    await socket.broadcast.emit('user connected', {
+      userId: socket.userId,
+      username: socket.username,
+      sessionId: socket.sessionId,
+    });
     socket.on('private message', ({ content, to }) => {
       const newMessage = {
         from: socket.userId,
@@ -111,6 +112,32 @@ module.exports = function(IO) {
       saveMessages(newMessage);
     })
 
+    socket.on('new message', (message) => {
+      socket.broadcast.emit('new message', {
+        userId: socket.userId,
+        username: socket.username,
+        message,
+      })
+    });
+
+    socket.on('disconnect', async () => {
+      console.log('disconnect' ,socket.userId)
+      const matchingSockets = await IO.in(socket.userId).allSockets();
+      console.log('matchingSockets', matchingSockets);
+      const isDisconnected = matchingSockets.size === 0;
+      if (isDisconnected) {
+        socket.broadcast.emit('user disconnected', {
+          userId: socket.userId,
+          username: socket.username,
+        })
+        saveSession(socket.sessionId, {
+          userId: socket.userId,
+          username: socket.username,
+          connected: socket.connected
+        })
+      }
+    });
+
     // socket.on('user messages', ({ userId, username }) => {
     //   const userMessages = getMessagesForUser(userId);
     //   socket.emit('user messages', {
@@ -120,57 +147,4 @@ module.exports = function(IO) {
     //   });
     // });
   })
-
-
-  // IO.on('connection', (socket) => {
-  //   console.log(`${socket.id} just connected`);
-
-  //   socket.on('message', (data) => {
-  //     IO.emit('serverReply', data);
-  //   })
-
-  //   socket.on('online', async (data) => {
-  //     console.log('online', data);
-  //     const newUser = await User.findOneAndUpdate(
-  //         { _id: ObjectID(data.id) },
-  //         { $set: { online: true, socketId: data.socketID } },
-  //         { returnDocument: true }
-  //       );
-  //     if (newUser.value) {
-  //       users.push(data.id);
-  //       onlineUsers[data.socketID] = data.id
-  //       IO.emit('appearance', users)
-  //     }
-  //   });
-
-  //   socket.on('typing', (data) => socket.broadcast.emit('typingResponse', data));
-
-  //   socket.on('doneTyping', (data) => {
-  //     console.log(data);
-  //     socket.broadcast.emit('doneTypingResponse', data);
-  //   });
-
-  //   socket.on('private message', (data) => {
-  //     console.log(data)
-  //     IO.to(data.recipientSocketId).to(data.senderSocketId).emit('private message', { data, socketId: socket.id })
-  //   });
-
-  //   // socket.onAny((event, ...args) => {
-  //   //   console.log(event, args);
-  //   // });
-
-  //   socket.on('disconnect', async (reason) => {
-  //     console.log(socket.id)
-  //     const newUser = await User.findOneAndUpdate(
-  //       { socketId: socket.id },
-  //       { $set: { online: false, socketId: '' } },
-  //     );
-  //     if (newUser.value) {
-  //       const userId = onlineUsers[socket.id];
-  //       delete onlineUsers[socket.id];
-  //       const userIds = users.filter((id) => id !== userId);
-  //       IO.emit('appearance', userIds)
-  //     }
-  //   });
-  // });
 }
