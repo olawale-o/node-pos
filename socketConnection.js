@@ -48,11 +48,11 @@ const getMessagesForUser = (userId) => {
 
 
 module.exports = function(IO) {
-  IO.use((socket, next) => {
+  IO.use(async (socket, next) => {
     const sessionId = socket.handshake.auth.sessionId;
     if (sessionId) {
-      const session = findSession(sessionId);
-      // console.log('session', session)
+      const session = await findSession(sessionId);
+      console.log('session', session)
       if (session) {
         socket.sessionId = sessionId;
         socket.userId = session.userId
@@ -78,10 +78,7 @@ module.exports = function(IO) {
       userId: socket.userId, username: socket.username,
       connected: true,
     })
-    console.log(socket.userId)
     await socket.join(socket.userId);
-    await socket.emit('session', { sessionId: socket.sessionId, userId: socket.userId, username: socket.username });
-    // all connected users
     const users = []
     // const userMessages = getMessagesForUser(socket.userId)
     findSessions().forEach((session) => {
@@ -94,7 +91,9 @@ module.exports = function(IO) {
         })
       }
     })
-    console.log('users', users);
+  
+    await socket.emit('session', { sessionId: socket.sessionId, userId: socket.userId, username: socket.username });
+    // all connected users
     await socket.emit("users", users);
 
     await socket.broadcast.emit('user connected', {

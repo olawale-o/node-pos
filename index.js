@@ -10,7 +10,8 @@ const dbConnection = require('./database/connection');
 
 const IO = new Server(server, {
   cors: {
-    origin: "http://localhost:3000"
+    origin: "http://localhost:3000",
+    methods: ['GET', 'POST']
   }
 });
 
@@ -28,7 +29,8 @@ dbConnection(MongoClient)
   console.log(err)
 })
 
-app.use('/api/v1/users', require('./userRoute'));
+app.use('/api/v1/users', require('./userRoute')(IO));
+app.use('/api/v1/conversations', require('./messageRoute')(IO));
 
 app.get('/api', (req, res) => {
   res.json({
