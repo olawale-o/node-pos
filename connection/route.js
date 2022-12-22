@@ -11,19 +11,19 @@ module.exports = function(socket) {
   router.post('/', async (req, res, next) => {
     const { requester, recipient } = req.body;
     try {
-      const newUser = {
+      const newFriend = {
         users: [requester, recipient],
         status: 'request',
         request: {
-          from: requester.id,
-          to: recipient.id,
+          from: requester,
+          to: recipient,
         },
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      const userId = await Friend.insertOne(newUser);
+      const userId = await Friend.insertOne(newFriend);
       return res.status(200).json({
-        ...newUser,
+        ...newFriend,
         id: userId,
       })
     } catch (error) {
