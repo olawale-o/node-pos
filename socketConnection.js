@@ -1,14 +1,9 @@
 const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const { MongoClient } = require('mongodb');
-const { ObjectID } = require('bson');
-const { v4: uuidv4 } = require('uuid');
 
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const User = client.db('socialdb').collection('users');
-
-//let users = [];
-let onlineUsers = {};
 
 const sessions = new Map();
 const messages = [];
@@ -34,16 +29,17 @@ const findMessagesForUser = (userId) => {
 }
 
 const getMessagesForUser = (userId) => {
-  const messagesForsUser = new Map();
+  const messagesPerUser = new Map();
   findMessagesForUser(userId).forEach((message) => {
     const { from, to } = message;
     const otherUser = userId === from ? to : from;
-    if (messagesForsUser.has(otherUser)) {
-      messagesForsUser.get(otherUser).push(message);
+    if (messagesPerUser.has(otherUser)) {
+      messagesPerUser.get(otherUser).push(message);
     } else {
-      messagesForsUser.set(otherUser, [message])
+      messagesPerUser.set(otherUser, [message])
     }
-  })
+  });
+  return messagesPerUser;
 }
 
 
@@ -55,7 +51,8 @@ module.exports = function(IO) {
       console.log('session', session)
       if (session) {
         socket.sessionId = sessionId;
-        socket.userId = session.userId
+        socket.userId = session.userId;
+        socket._id = session.userId;
         socket.username = session.username;
         return next();
       } else {
@@ -69,30 +66,34 @@ module.exports = function(IO) {
     // console.log('line 69', user);
     socket.username = user.username;
     socket.userId = user._id;
+    socket._id = user._id;
     socket.sessionId = user._id;
     next()
   })
 
   IO.on('connection', async (socket) => {
     saveSession(socket.sessionId, {
-      userId: socket.userId, username: socket.username,
+      userId: socket.userId, username: socket.username, _id: socket._id,
       connected: true,
     })
     await socket.join(socket.userId);
     const users = []
-    // const userMessages = getMessagesForUser(socket.userId)
+    const userMessages = getMessagesForUser(socket.userId)
     findSessions().forEach((session) => {
       if (session.userId !== socket.userId) {
         users.push({
           userId: session.userId,
           username: session.username,
           connected: session.connected,
-          // messages: userMessages.get(session.userId) || [],
+          _id: session._id,
+          messages: userMessages.get(session.userId) || [],
         })
       }
     })
   
-    await socket.emit('session', { sessionId: socket.sessionId, userId: socket.userId, username: socket.username });
+    await socket.emit('session', {
+      sessionId: socket.sessionId, userId: socket.userId, username: socket.username, _id: socket._id,
+    });
     // all connected users
     await socket.emit("users", users);
 
@@ -100,13 +101,16 @@ module.exports = function(IO) {
       userId: socket.userId,
       username: socket.username,
       sessionId: socket.sessionId,
+      _id: socket._id,
     });
-    socket.on('private message', ({ content, to }) => {
+    socket.on('private message', ({ text, to }) => {
       const newMessage = {
         from: socket.userId,
         to,
-        content
+        text,
+        username: socket.username
       }
+      console.log('newMessage', newMessage);
       socket.to(to).emit("private message", newMessage);
       saveMessages(newMessage);
     })
@@ -119,10 +123,19 @@ module.exports = function(IO) {
       })
     });
 
+    socket.on('user messages', ({ _id, username }) => {
+      const userMessages = getMessagesForUser(socket._id);
+      console.log(userMessages);
+      console.log(userMessages.get(_id));
+      socket.emit('user messages', {
+        userId: _id,
+        _id,
+        username,
+        messages: userMessages.get(_id) || []
+      })
+    });
     socket.on('disconnect', async () => {
-      console.log('disconnect' ,socket.userId)
       const matchingSockets = await IO.in(socket.userId).allSockets();
-      console.log('matchingSockets', matchingSockets);
       const isDisconnected = matchingSockets.size === 0;
       if (isDisconnected) {
         socket.broadcast.emit('user disconnected', {
@@ -136,14 +149,5 @@ module.exports = function(IO) {
         })
       }
     });
-
-    // socket.on('user messages', ({ userId, username }) => {
-    //   const userMessages = getMessagesForUser(userId);
-    //   socket.emit('user messages', {
-    //     userId,
-    //     username,
-    //     messages: userMessages.get(userId) || [],
-    //   });
-    // });
   })
 }
