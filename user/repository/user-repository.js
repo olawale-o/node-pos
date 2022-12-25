@@ -3,7 +3,7 @@ const { ObjectID } = require('bson');
 const { MongoClient } = require('mongodb');
 
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
-const User = client.db('socialdb').collection('users');
+const User = client.db('microservice').collection('users');
 module.exports = {
   create: async (credentials) => await User.insertOne(credentials),
   findByUsername: async ({ username }) => await User.findOne({ username }),
