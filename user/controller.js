@@ -1,5 +1,6 @@
 const userService = require('./services/user-service');
 const publisher = require('./events/publisher');
+const tokenService = require('./services/token-service');
 
 module.exports = {
   create: async (req, res) => {
@@ -8,7 +9,20 @@ module.exports = {
       const user = await userService.register(
         { username, password, name, createdAt: new Date(), updatedAt: new Date() }
       );
-      return res.status(201).json(user);  
+      if (!user) {
+        console.log('error');
+      }
+      const accessToken = await tokenService.signAccessToken({ userId: user.insertedId });
+      const refreshToken = await tokenService.signRefreshToken({ userId: user.insertedId });
+      await userService.updateToken(user.insertedId, { $set: { accessToken, refreshToken } });
+      res.cookie('jwt', refreshToken, {
+        httpOnly: true, sameSite: 'None', secure: true, maxAge: 1000 * 60 * 60 * 24,
+      });
+      return res.status(201).json({
+        id: user.insertedId,
+        name,
+        username,
+      });  
     } catch (error) {
       console.log(error);
     }
