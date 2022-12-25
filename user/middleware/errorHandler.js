@@ -1,7 +1,13 @@
-module.exports = (err, req, res, next) => {
-  res.status(err.status || 500);
-  res.json({
+const handleError = (err, res) => {
+  console.error(err);
+  // sendCriticalErrorNotification()
+  
+  if (!err.isOperational) {
+    // Shut down the application if it's not an AppError
+  }
+  return res.status(err.statusCode).json({
     message: err.message,
-    error: err
   });
 };
+  
+module.exports = handleError;
