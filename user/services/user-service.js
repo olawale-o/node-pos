@@ -1,8 +1,13 @@
 const userRepository = require('../repository/user-repository');
 const publisher = require('../events/publisher');
+const bcrypt = require('bcrypt');
 
 module.exports = {
-  register: async (crendentials) => await userRepository.create(crendentials),
+  register: async (crendentials) => {
+    const { username, name, password } = crendentials;
+
+    return await userRepository.create({ username, name, password: bcrypt.hashSync(password, 10) });
+  },
   login: async (credentials) => {
     const user = this._verifyUserName(credentials);
     if (this._verifyPassword({ password: user.password, passwordEncrypt: 'encrypt' })) {
@@ -10,8 +15,11 @@ module.exports = {
     }
     return user;
   },
-  myRequests: async (crendentials) => {
-
+  getToken: async (credentials) => {
+    return await userRepository.findById(credentials);
+  },
+  updateToken: async (credentials, operation) => {
+    return await userRepository.findByIdAndUpdate(credentials, operation);
   },
   _verifyUserName: async (crendentials) => await userRepository.findByUsername(crendentials),
   _verifyPassword: async ({ password, passwordEncrypt }) => password === passwordEncrypt,
