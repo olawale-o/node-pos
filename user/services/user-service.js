@@ -1,4 +1,5 @@
 const userRepository = require('../repository/user-repository');
+const publisher = require('../events/publisher');
 
 module.exports = {
   register: async (crendentials) => await userRepository.create(crendentials),
@@ -8,6 +9,9 @@ module.exports = {
       throw new Error("Password invalid")
     }
     return user;
+  },
+  myRequests: async (crendentials) => {
+
   },
   _verifyUserName: async (crendentials) => await userRepository.findByUsername(crendentials),
   _verifyPassword: async ({ password, passwordEncrypt }) => password === passwordEncrypt,
@@ -20,5 +24,20 @@ module.exports = {
       default:
         break;
     }
+  },
+  getConnectionPayload: ({ requester, recipient }, event) => {
+    const payload = {
+      event,
+      data: { requester, recipient }
+    };
+    return payload;
+  },
+
+  getPendingConnectionPayload: ({ userId }, event) => {
+    const payload = {
+      event,
+      data: { userId }
+    };
+    return payload;
   }
 }
