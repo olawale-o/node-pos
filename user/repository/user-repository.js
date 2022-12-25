@@ -8,4 +8,5 @@ module.exports = {
   create: async (credentials) => await User.insertOne(credentials),
   findByUsername: async ({ username }) => await User.findOne({ username }),
   findById: async ({ id }) => await User.findOne({ _id: ObjectID(id) }),
+  findByIdAndUpdate: async (id, operation) => await User.findOneAndUpdate({ _id: ObjectID(id) }, operation),
 };
