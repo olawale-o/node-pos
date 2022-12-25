@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const errorHandler = require('../middleware/errorHandler');
 const socketConnection = require('../socketConnection');
+const appEvent = require('../events/app-event');
 
 const app = express();
 
@@ -17,6 +18,8 @@ const IO = new Server(server, {
     origin: "http://localhost:3000",
   }
 });
+
+appEvent(app);
 app.use('/v1', require('../route')(IO));
 
 app.use(errorHandler);
