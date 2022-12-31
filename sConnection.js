@@ -95,7 +95,7 @@ module.exports = function(IO) {
     await socket.emit('session', { sessionId: socket.sessionId, userId: socket.userId, username: socket.username });
     // all connected users
 
-    // get all user's follower
+    // get all user's follower online
     const onlineFollowers = await User.find({_id: {$ne: ObjectID(socket.userId) }}).toArray();
     socket.emit("users", onlineFollowers)
 
@@ -108,12 +108,11 @@ module.exports = function(IO) {
 
     socket.on('private message', async ({ text, to }) => {
       const newMessage = {
-        from: socket.userId,
-        to,
+        from: ObjectID(socket.userId),
+        to: ObjectID(to),
         text,
         username: socket.username
       }
-      console.log('new private message')
       await Conversation.insertOne({
         from: socket.userId,
         to,
@@ -122,19 +121,25 @@ module.exports = function(IO) {
         updatedAt: new Date(Date.now()),
       });
       socket.to(to).emit("private message", newMessage);
-      saveMessages(newMessage);
+      // saveMessages(newMessage);
     });
 
-    socket.on('user messages', ({ _id, username }) => {
-      // pull messages from database
-      const userMessages = getMessagesForUser(socket._id);
-      console.log(userMessages);
-      console.log(userMessages.get(_id));
+    socket.on('user messages', async ({ _id, username }) => {
+      const dbMessagess = await Conversation.aggregate([
+        {
+          $match: {
+            $or: [ 
+              { $and: [{ from: socket._id}, {to: _id}] },
+              { $and: [{ from: _id}, {to: socket._id}] }
+            ]
+          }
+      }]).toArray();
+      // const userMessages = getMessagesForUser(socket._id);
       socket.emit('user messages', {
         userId: _id,
         _id,
         username,
-        messages: userMessages.get(_id) || []
+        messages: dbMessagess || [], // userMessages.get(_id) || []
       })
     });
 
@@ -154,14 +159,5 @@ module.exports = function(IO) {
         })
       }
     });
-
-    // socket.on('user messages', ({ userId, username }) => {
-    //   const userMessages = getMessagesForUser(userId);
-    //   socket.emit('user messages', {
-    //     userId,
-    //     username,
-    //     messages: userMessages.get(userId) || [],
-    //   });
-    // });
   })
 }
