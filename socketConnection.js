@@ -1,5 +1,5 @@
 const { LOCAL_MONGODB_SINGLESET } = require('./config');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
@@ -74,27 +74,43 @@ module.exports = function(IO) {
   IO.on('connection', async (socket) => {
     saveSession(socket.sessionId, {
       userId: socket.userId, username: socket.username, _id: socket._id,
-      connected: true,
+      online: true,
     })
     await socket.join(socket.userId);
     const users = []
     const userMessages = getMessagesForUser(socket.userId)
-    findSessions().forEach((session) => {
-      if (session.userId !== socket.userId) {
-        users.push({
-          userId: session.userId,
-          username: session.username,
-          connected: session.connected,
-          _id: session._id,
-          messages: userMessages.get(session.userId) || [],
-        })
-      }
+    const a = await User.find({ _id: { $ne: ObjectId(socket.userId) }}).toArray()
+    // find all connected users except the current user
+    // findSessions().forEach((session) => {
+    //   if (session.userId !== socket.userId) {
+    //     users.push({
+    //       userId: session.userId,
+    //       username: session.username,
+    //       connected: session.connected,
+    //       _id: session._id,
+    //       messages: userMessages.get(session.userId) || [],
+    //     })
+    //   }
+    // })
+
+    a.forEach((user) => {
+      users.push({
+        userId: findSession(user._id.toString())?.userId || user._id,
+        username: findSession(user._id.toString())?.username || user.username,
+        online: findSession(user._id.toString())?.online || user.online,
+        _id: findSession(user._id.toString())?._id || user._id,
+        messages: userMessages.get(user._id.toString()) || [],
+      })
     })
   
     await socket.emit('session', {
-      sessionId: socket.sessionId, userId: socket.userId, username: socket.username, _id: socket._id,
+      sessionId: socket.sessionId,
+      userId: socket.userId,
+      username: socket.username,
+      _id: socket._id,
+      online: true,
     });
-    // all connected users
+    // all connected users except current user
     await socket.emit("users", users);
 
     await socket.broadcast.emit('user connected', {
@@ -145,7 +161,7 @@ module.exports = function(IO) {
         saveSession(socket.sessionId, {
           userId: socket.userId,
           username: socket.username,
-          connected: socket.connected
+          online: socket.online
         })
       }
     });

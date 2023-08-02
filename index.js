@@ -5,6 +5,7 @@ const server = require('http').createServer(app);
 const cors = require('cors');
 const { Server } = require('socket.io');
 const socketConnection = require('./socketConnection');
+const sConnection = require('./sConnection');
 const { MongoClient } = require('mongodb');
 const dbConnection = require('./database/connection');
 
