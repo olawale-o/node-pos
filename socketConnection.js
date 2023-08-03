@@ -126,7 +126,6 @@ module.exports = function(IO) {
         text,
         username: socket.username
       }
-      console.log('newMessage', newMessage);
       socket.to(to).emit("private message", newMessage);
       saveMessages(newMessage);
     })
