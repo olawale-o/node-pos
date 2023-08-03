@@ -112,7 +112,6 @@ module.exports = function(IO) {
     const users = []
     const userMessages = await getMessagesForUserFromDB(socket.userId) // getMessagesForUser(socket.userId)
     const a = await fetchUsersFromDB(socket.userId)
-    console.log(userMessages);
     // find all connected users except the current user
     // findSessions().forEach((session) => {
     //   if (session.userId !== socket.userId) {
