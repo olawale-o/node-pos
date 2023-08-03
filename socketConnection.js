@@ -1,10 +1,12 @@
+const { MongoDBMessageStorage } = require('./messageStorage');
 const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
+const mongoStorage = new MongoDBMessageStorage(client)
+
 const User = client.db('socialdb').collection('users');
-const Conversation = client.db('socialdb').collection('conversations');
 
 const sessions = new Map();
 const messages = [];
@@ -25,25 +27,13 @@ const saveMessages = (message) => {
   messages.push(message);
 }
 
-const saveMessagesToDB = async (message) => {
-  await Conversation.insertOne({
-    ...message,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  })
-}
-
-const findMessagesForUserFromDB = async (userId) => {
-  return Conversation.find({ $or: [{ from: ObjectId(userId) }, {to: ObjectId(userId) }] }).toArray();
-}
-
 const fetchUsersFromDB = async (userId) => {
   return await User.find({ _id: { $ne: ObjectId(userId) }}).toArray();
 }
 
 const getMessagesForUserFromDB = async (userId) => {
   const messagesPerUser = new Map();
-  const messages = await findMessagesForUserFromDB(userId);
+  const messages = await mongoStorage.findMessagesForUserFromDB(userId);
   messages.forEach((message) => {
     const { from, to } = message;
     const otherUser = userId.toString() === from.toString() ? to.toString() : from.toString();
@@ -74,13 +64,11 @@ const getMessagesForUser = (userId) => {
   return messagesPerUser;
 }
 
-
 module.exports = function(IO) {
   IO.use(async (socket, next) => {
     const sessionId = socket.handshake.auth.sessionId;
     if (sessionId) {
       const session = await findSession(sessionId);
-      console.log('session', session)
       if (session) {
         socket.sessionId = sessionId;
         socket.userId = session.userId;
@@ -160,7 +148,7 @@ module.exports = function(IO) {
       }
       socket.to(to).emit("private message", newMessage);
       // saveMessages(newMessage);
-      await saveMessagesToDB({ from: ObjectId(socket.userId), to: ObjectId(to), text })
+      await mongoStorage.saveMessagesToDB({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
 
     socket.on('new message', (message) => {
