@@ -4,6 +4,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const User = client.db('socialdb').collection('users');
+const Conversation = client.db('socialdb').collection('conversations');
 
 const sessions = new Map();
 const messages = [];
@@ -22,6 +23,14 @@ const findSessions = () => {
 
 const saveMessages = (message) => {
   messages.push(message);
+}
+
+const saveMessagesToDB = async (message) => {
+  await Conversation.insertOne({
+    ...message,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  })
 }
 
 const findMessagesForUser = (userId) => {
@@ -119,7 +128,7 @@ module.exports = function(IO) {
       sessionId: socket.sessionId,
       _id: socket._id,
     });
-    socket.on('private message', ({ text, to }) => {
+    socket.on('private message', async ({ text, to }) => {
       const newMessage = {
         from: socket.userId,
         to,
@@ -128,6 +137,7 @@ module.exports = function(IO) {
       }
       socket.to(to).emit("private message", newMessage);
       saveMessages(newMessage);
+      await saveMessagesToDB({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
 
     socket.on('new message', (message) => {
