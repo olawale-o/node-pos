@@ -33,6 +33,29 @@ const saveMessagesToDB = async (message) => {
   })
 }
 
+const findMessagesForUserFromDB = async (userId) => {
+  return Conversation.find({ $or: [{ from: ObjectId(userId) }, {to: ObjectId(userId) }] }).toArray();
+}
+
+const fetchUsersFromDB = async (userId) => {
+  return await User.find({ _id: { $ne: ObjectId(userId) }}).toArray();
+}
+
+const getMessagesForUserFromDB = async (userId) => {
+  const messagesPerUser = new Map();
+  const messages = await findMessagesForUserFromDB(userId);
+  messages.forEach((message) => {
+    const { from, to } = message;
+    const otherUser = userId.toString() === from.toString() ? to.toString() : from.toString();
+    if (messagesPerUser.has(otherUser)) {
+      messagesPerUser.get(otherUser).push(message);
+    } else {
+      messagesPerUser.set(otherUser, [message])
+    }
+  });
+  return messagesPerUser;
+}
+
 const findMessagesForUser = (userId) => {
   return messages.filter((message) => message.from === userId || message.to === userId)
 }
@@ -87,8 +110,9 @@ module.exports = function(IO) {
     })
     await socket.join(socket.userId);
     const users = []
-    const userMessages = getMessagesForUser(socket.userId)
-    const a = await User.find({ _id: { $ne: ObjectId(socket.userId) }}).toArray()
+    const userMessages = await getMessagesForUserFromDB(socket.userId) // getMessagesForUser(socket.userId)
+    const a = await fetchUsersFromDB(socket.userId)
+    console.log(userMessages);
     // find all connected users except the current user
     // findSessions().forEach((session) => {
     //   if (session.userId !== socket.userId) {
@@ -136,7 +160,7 @@ module.exports = function(IO) {
         username: socket.username
       }
       socket.to(to).emit("private message", newMessage);
-      saveMessages(newMessage);
+      // saveMessages(newMessage);
       await saveMessagesToDB({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
 
@@ -148,10 +172,8 @@ module.exports = function(IO) {
       })
     });
 
-    socket.on('user messages', ({ _id, username }) => {
-      const userMessages = getMessagesForUser(socket._id);
-      console.log(userMessages);
-      console.log(userMessages.get(_id));
+    socket.on('user messages', async ({ _id, username }) => {
+      const userMessages = await getMessagesForUserFromDB(socket._id) // getMessagesForUser(socket._id);
       socket.emit('user messages', {
         userId: _id,
         _id,
