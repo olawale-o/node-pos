@@ -1,31 +1,16 @@
-const { MongoDBMessageStorage } = require('./messageStorage');
+const { MongoDBMessageStorage, InMemoryMessageStorage } = require('./messageStorage');
+const { InMemmoryStore } = require('./sessionStorage');
 const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
-const mongoStorage = new MongoDBMessageStorage(client)
+const memoryStorage = new InMemoryMessageStorage();
+const mongoStorage = new MongoDBMessageStorage(client);
+
+const memorySession = new InMemmoryStore();
 
 const User = client.db('socialdb').collection('users');
-
-const sessions = new Map();
-const messages = [];
-
-const findSession = (id) => {
-  return sessions.get(id)
-}
-
-const saveSession = (id, session) => {
-  sessions.set(id, session);
-};
-
-const findSessions = () => {
-  return [...sessions.values()];
-}
-
-const saveMessages = (message) => {
-  messages.push(message);
-}
 
 const fetchUsersFromDB = async (userId) => {
   return await User.find({ _id: { $ne: ObjectId(userId) }}).toArray();
@@ -46,13 +31,9 @@ const getMessagesForUserFromDB = async (userId) => {
   return messagesPerUser;
 }
 
-const findMessagesForUser = (userId) => {
-  return messages.filter((message) => message.from === userId || message.to === userId)
-}
-
 const getMessagesForUser = (userId) => {
   const messagesPerUser = new Map();
-  findMessagesForUser(userId).forEach((message) => {
+  memoryStorage.findMessagesForUser(userId).forEach((message) => {
     const { from, to } = message;
     const otherUser = userId === from ? to : from;
     if (messagesPerUser.has(otherUser)) {
@@ -68,7 +49,7 @@ module.exports = function(IO) {
   IO.use(async (socket, next) => {
     const sessionId = socket.handshake.auth.sessionId;
     if (sessionId) {
-      const session = await findSession(sessionId);
+      const session = await memorySession.findSession(sessionId);
       if (session) {
         socket.sessionId = sessionId;
         socket.userId = session.userId;
@@ -92,7 +73,7 @@ module.exports = function(IO) {
   })
 
   IO.on('connection', async (socket) => {
-    saveSession(socket.sessionId, {
+    memorySession.saveSession(socket.sessionId, {
       userId: socket.userId, username: socket.username, _id: socket._id,
       online: true,
     })
@@ -101,7 +82,7 @@ module.exports = function(IO) {
     const userMessages = await getMessagesForUserFromDB(socket.userId) // getMessagesForUser(socket.userId)
     const a = await fetchUsersFromDB(socket.userId)
     // find all connected users except the current user
-    // findSessions().forEach((session) => {
+    // memorySession.findSessions().forEach((session) => {
     //   if (session.userId !== socket.userId) {
     //     users.push({
     //       userId: session.userId,
@@ -115,10 +96,10 @@ module.exports = function(IO) {
 
     a.forEach((user) => {
       users.push({
-        userId: findSession(user._id.toString())?.userId || user._id,
-        username: findSession(user._id.toString())?.username || user.username,
-        online: findSession(user._id.toString())?.online || user.online,
-        _id: findSession(user._id.toString())?._id || user._id,
+        userId: memorySession.findSession(user._id.toString())?.userId || user._id,
+        username: memorySession.findSession(user._id.toString())?.username || user.username,
+        online: memorySession.findSession(user._id.toString())?.online || user.online,
+        _id: memorySession.findSession(user._id.toString())?._id || user._id,
         messages: userMessages.get(user._id.toString()) || [],
       })
     })
@@ -147,7 +128,7 @@ module.exports = function(IO) {
         username: socket.username
       }
       socket.to(to).emit("private message", newMessage);
-      // saveMessages(newMessage);
+      // memoryStorage.saveMessages(newMessage);
       await mongoStorage.saveMessagesToDB({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
 
@@ -176,7 +157,7 @@ module.exports = function(IO) {
           userId: socket.userId,
           username: socket.username,
         })
-        saveSession(socket.sessionId, {
+        memorySession.saveSession(socket.sessionId, {
           userId: socket.userId,
           username: socket.username,
           online: socket.online
