@@ -1,6 +1,6 @@
 const { MongoClient, ObjectId } = require('mongodb');
 
-const { MongoDBMessageStorage, InMemoryMessageStorage } = require('./messageStorage');
+const { MongoDBMessageStorage, InMemoryMessageStorage, RedisMessageStorage } = require('./messageStorage');
 const { InMemmoryStore, RedisSessionStorage } = require('./sessionStorage');
 const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
@@ -17,9 +17,9 @@ const fetchUsersFromDB = async (userId) => {
   return await User.find({ _id: { $ne: ObjectId(userId) }}).toArray();
 }
 
-const getMessagesForUserFromDB = async (userId) => {
+const getMessagesForUserFromMongoDB = async (userId) => {
   const messagesPerUser = new Map();
-  const messages = await mongoStorage.findMessagesForUser(userId); memoryStorage.findMessagesForUser
+  const messages = await mongoStorage.findMessagesForUser(userId);
   messages.forEach((message) => {
     const { from, to } = message;
     const otherUser = userId.toString() === from.toString() ? to.toString() : from.toString();
@@ -46,8 +46,25 @@ const getMessagesForUser = (userId) => {
   return messagesPerUser;
 }
 
+
 module.exports = function(IO, redisClient) {
   const redisSession = new RedisSessionStorage(redisClient);
+  const redisMessageStorage = new RedisMessageStorage(redisClient);
+
+  const getMessagesForUserFromRedisStore = async (userId) => {
+    const messagesPerUser = new Map();
+    const messages = await redisMessageStorage.findMessagesForUser(userId);
+    messages.forEach((message) => {
+      const { from, to } = message;
+      const otherUser = userId === from ? to : from;
+      if (messagesPerUser.has(otherUser)) {
+        messagesPerUser.get(otherUser).push(message);
+      } else {
+        messagesPerUser.set(otherUser, [message])
+      }
+    });
+    return messagesPerUser;
+  }
   IO.use(async (socket, next) => {
     const sessionId = socket.handshake.auth.sessionId;
     if (sessionId) {
@@ -83,8 +100,8 @@ module.exports = function(IO, redisClient) {
     })
     await socket.join(socket.userId);
     const users = []
-    const userMessages = await getMessagesForUserFromDB(socket.userId) // getMessagesForUser(socket.userId)
-    const a = await fetchUsersFromDB(socket.userId)
+    const userMessages = await getMessagesForUserFromRedisStore(socket.userId) // getMessagesForUser(socket.userId) //await getMessagesForUserFromMongoDB(socket.userId)
+    const dbUsers = await fetchUsersFromDB(socket.userId)
     // find all connected users except the current user
     // const s = await redisSession.findSessions();
     // s.forEach((session) => {
@@ -99,7 +116,7 @@ module.exports = function(IO, redisClient) {
     //   }
     // })
 
-    for (const user of a) {
+    for (const user of dbUsers) {
       const u = await redisSession.findSession(user._id.toString())
       if (u === null) {
         users.push({
@@ -145,6 +162,7 @@ module.exports = function(IO, redisClient) {
       }
       socket.to(to).emit("private message", newMessage);
       // memoryStorage.saveMessages(newMessage);
+      await redisMessageStorage.saveMessage({ from: ObjectId(socket.userId), to: ObjectId(to), text });
       await mongoStorage.saveMessage({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
 
@@ -157,7 +175,7 @@ module.exports = function(IO, redisClient) {
     });
 
     socket.on('user messages', async ({ _id, username }) => {
-      const userMessages = await getMessagesForUserFromDB(socket._id) // getMessagesForUser(socket._id);
+      const userMessages = await getMessagesForUserFromRedisStore(socket._id); // await getMessagesForUserFromMongoDB(socket._id) // getMessagesForUser(socket._id);
       socket.emit('user messages', {
         userId: _id,
         _id,

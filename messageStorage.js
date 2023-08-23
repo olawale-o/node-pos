@@ -37,7 +37,7 @@ class RedisMessageStorage extends MessageStorage {
   
   async findMessagesForUser(userId) {
     return this.redisClient
-    .lrange(`messages:${userId}`, 0, 1)
+    .lrange(`messages:${userId}`, 0, -1)
     .then((results) => {
       return results.map((res) => JSON.parse(res))
     })
@@ -58,7 +58,7 @@ class MongoDBMessageStorage extends MessageStorage {
   async findMessagesForUser(userId) {
     return this._findMessagesForUserFromDB(userId);
   }
-  
+
   async _saveMessagesToDB(message){
     await this.mongoClient.db('socialdb').collection('conversations').insertOne({
       ...message,
