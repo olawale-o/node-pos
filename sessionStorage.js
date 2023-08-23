@@ -30,13 +30,13 @@ class RedisSessionStorage extends SessionStorage {
     this.redisClient = redisClient;
   }
 
-  async saveSession(sessionId, { userId, username, online }) {
+  async saveSession(sessionId, user) {
     await this.redisClient
     .multi()
     .hset(
       `session:${sessionId}`,
       "session",
-      JSON.stringify({ userId, username, online})
+      JSON.stringify(user)
     )
     .exec()
   }
@@ -44,10 +44,10 @@ class RedisSessionStorage extends SessionStorage {
   async findSession(sessionId) {
     return await this.redisClient
     .multi()
-    .hget(`session:${sessionId}`)
+    .hget(`session:${sessionId}`, "session")
     .exec()
-    .then((result) => {
-      console.log(result)
+    .then(([[err, result]]) => {
+     //  console.log({redisResult: result})
       return JSON.parse(result)
     }).catch((err) => {
       console.log(err)   
@@ -76,8 +76,8 @@ class RedisSessionStorage extends SessionStorage {
     return this.redisClient
     .multi(commands)
     .exec()
-    .then(([sessions]) => {
-      return [JSON.parse(sessions)]
+    .then((results) => {
+      return results.map(([err, session]) => JSON.parse(session))
     })
     .catch((err) => console.log(err))
   }
