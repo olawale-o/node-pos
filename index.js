@@ -9,11 +9,20 @@ const sConnection = require('./sConnection');
 const { MongoClient } = require('mongodb');
 const dbConnection = require('./database/connection');
 
+const Redis = require('ioredis')
+const { createAdapter } = require('socket.io-redis');
+
+const redisClient = new Redis()
+
 const IO = new Server(server, {
   cors: {
     origin: "http://localhost:3000",
     methods: ['GET', 'POST']
-  }
+  },
+  adapter: createAdapter({
+    pubClient: redisClient,
+    subClient: redisClient.duplicate()
+  })
 });
 
 app.use(express.json());
@@ -21,7 +30,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use(cors());
 
-socketConnection(IO);
+socketConnection(IO, redisClient);
 
 dbConnection(MongoClient)
 .then((result) => {
