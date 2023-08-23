@@ -1,14 +1,15 @@
-const { MongoDBMessageStorage, InMemoryMessageStorage } = require('./messageStorage');
-const { InMemmoryStore } = require('./sessionStorage');
-const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const { MongoClient, ObjectId } = require('mongodb');
 
+const { MongoDBMessageStorage, InMemoryMessageStorage } = require('./messageStorage');
+const { InMemmoryStore, RedisSessionStorage } = require('./sessionStorage');
+const { LOCAL_MONGODB_SINGLESET } = require('./config');
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const memoryStorage = new InMemoryMessageStorage();
+
 const mongoStorage = new MongoDBMessageStorage(client);
 
-const memorySession = new InMemmoryStore();
+// const memorySession = new InMemmoryStore();
 
 const User = client.db('socialdb').collection('users');
 
@@ -45,11 +46,12 @@ const getMessagesForUser = (userId) => {
   return messagesPerUser;
 }
 
-module.exports = function(IO) {
+module.exports = function(IO, redisClient) {
+  const redisSession = new RedisSessionStorage(redisClient);
   IO.use(async (socket, next) => {
     const sessionId = socket.handshake.auth.sessionId;
     if (sessionId) {
-      const session = await memorySession.findSession(sessionId);
+      const session = await redisSession.findSession(sessionId);
       if (session) {
         socket.sessionId = sessionId;
         socket.userId = session.userId;
@@ -73,8 +75,10 @@ module.exports = function(IO) {
   })
 
   IO.on('connection', async (socket) => {
-    memorySession.saveSession(socket.sessionId, {
-      userId: socket.userId, username: socket.username, _id: socket._id,
+    await redisSession.saveSession(socket.sessionId, {
+      userId: socket.userId,
+      username: socket.username,
+      _id: socket.userId,
       online: true,
     })
     await socket.join(socket.userId);
@@ -82,27 +86,39 @@ module.exports = function(IO) {
     const userMessages = await getMessagesForUserFromDB(socket.userId) // getMessagesForUser(socket.userId)
     const a = await fetchUsersFromDB(socket.userId)
     // find all connected users except the current user
-    // memorySession.findSessions().forEach((session) => {
+    // const s = await redisSession.findSessions();
+    // s.forEach((session) => {
     //   if (session.userId !== socket.userId) {
     //     users.push({
     //       userId: session.userId,
     //       username: session.username,
-    //       connected: session.connected,
+    //       online: session.online,
     //       _id: session._id,
     //       messages: userMessages.get(session.userId) || [],
     //     })
     //   }
     // })
 
-    a.forEach((user) => {
-      users.push({
-        userId: memorySession.findSession(user._id.toString())?.userId || user._id,
-        username: memorySession.findSession(user._id.toString())?.username || user.username,
-        online: memorySession.findSession(user._id.toString())?.online || user.online,
-        _id: memorySession.findSession(user._id.toString())?._id || user._id,
-        messages: userMessages.get(user._id.toString()) || [],
-      })
-    })
+    for (const user of a) {
+      const u = await redisSession.findSession(user._id.toString())
+      if (u === null) {
+        users.push({
+          userId: user._id,
+          username: user.username,
+          online: user.online,
+          _id: user._id,
+          messages: userMessages.get(user._id.toString()) || [],
+        })
+      } else {
+        users.push({
+          userId: u?.userId,
+          username: u?.username,
+          online: u?.online,
+          _id: u?._id,
+          messages: userMessages.get(user._id.toString()) || [],
+        })
+      }
+    }
   
     await socket.emit('session', {
       sessionId: socket.sessionId,
@@ -157,10 +173,11 @@ module.exports = function(IO) {
           userId: socket.userId,
           username: socket.username,
         })
-        memorySession.saveSession(socket.sessionId, {
+        await redisSession.saveSession(socket.sessionId, {
           userId: socket.userId,
           username: socket.username,
-          online: socket.online
+          online: socket.online,
+          _id: socket._id
         })
       }
     });
