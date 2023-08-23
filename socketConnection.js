@@ -19,7 +19,7 @@ const fetchUsersFromDB = async (userId) => {
 
 const getMessagesForUserFromDB = async (userId) => {
   const messagesPerUser = new Map();
-  const messages = await mongoStorage.findMessagesForUserFromDB(userId);
+  const messages = await mongoStorage.findMessagesForUser(userId); memoryStorage.findMessagesForUser
   messages.forEach((message) => {
     const { from, to } = message;
     const otherUser = userId.toString() === from.toString() ? to.toString() : from.toString();
@@ -145,7 +145,7 @@ module.exports = function(IO, redisClient) {
       }
       socket.to(to).emit("private message", newMessage);
       // memoryStorage.saveMessages(newMessage);
-      await mongoStorage.saveMessagesToDB({ from: ObjectId(socket.userId), to: ObjectId(to), text })
+      await mongoStorage.saveMessage({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
 
     socket.on('new message', (message) => {

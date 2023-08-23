@@ -50,7 +50,16 @@ class MongoDBMessageStorage extends MessageStorage {
     super()
     this.mongoClient = mongoClient
   }
-  async saveMessagesToDB(message){
+
+  async saveMessage(message) {
+    return this._saveMessagesToDB(message);
+  }
+
+  async findMessagesForUser(userId) {
+    return this._findMessagesForUserFromDB(userId);
+  }
+  
+  async _saveMessagesToDB(message){
     await this.mongoClient.db('socialdb').collection('conversations').insertOne({
       ...message,
       createdAt: new Date(),
@@ -58,7 +67,7 @@ class MongoDBMessageStorage extends MessageStorage {
     })
   }
 
-  async findMessagesForUserFromDB (userId){
+  async _findMessagesForUserFromDB (userId){
     return await this.mongoClient.db('socialdb')
     .collection('conversations')
     .find({ $or: [{ from: ObjectId(userId) }, {to: ObjectId(userId) }] })
