@@ -25,11 +25,13 @@ module.exports = function(IO) {
     }  
   });
   
-  router.get('/', async (req, res, next) => {
+  router.get('/friends/:id', async (req, res, next) => {
+    const { id } = req.params;
+    console.log(id);
     try {
-      const allUsers = await User.find({ username: { $ne: req.query.q } }).toArray();
+      const users = await User.find({ _id: { $ne: ObjectID(id) } }).toArray();
       return res.status(200).json({
-        users: allUsers,
+        users,
       })
     } catch (error) {
       console.log(error);
@@ -63,11 +65,6 @@ module.exports = function(IO) {
         updatedAt: new Date(),
       };
       const friend = await Friend.insertOne(newFriend);
-      IO.sockets.emit('newFriendRequest', { requester, recipient });
-      // if (senderSocket) {
-      //   console.log('newfriendrequest')
-      //   senderSocket.broadcast.emit('newFriendRequest', { friend });
-      // }
       return res.status(200).json({
         friend,
       })
@@ -90,13 +87,13 @@ module.exports = function(IO) {
   });
 
   router.get('/:id', async (req, res) => {
-    console.log('contact');
     const { id } = req.params;
     try {
-      const user = await User.findOne({ _id: ObjectID(id) });
-
+      const contacts = await Friend.find({
+        $or: [ { followerId: id }, { followeeId: id } ]
+      }).toArray();
       return res.status(200).json({
-        user,
+        contacts,
       })
     } catch (error) {
       console.log(error);
