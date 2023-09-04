@@ -3,6 +3,7 @@ const { ObjectId } = require('mongodb');
 class MessageStorage {
   saveMessage(message) {}
   findMessagesForUser(userId) {}
+  followUser(followerId, followeeId) {}
 }
 
 class InMemoryMessageStorage extends MessageStorage {
@@ -18,6 +19,8 @@ class InMemoryMessageStorage extends MessageStorage {
   findMessagesForUser(userId) {
     return messages.filter((message) => message.from === userId || message.to === userId)
   }
+
+  followUser(followerId, followeeId) {}
 }
 
 class RedisMessageStorage extends MessageStorage {
@@ -43,6 +46,20 @@ class RedisMessageStorage extends MessageStorage {
     })
   }
 
+  async followUser(followerId, followeeId) {
+    await this.redisClient
+    .multi()
+    .rpush(`user:${followeeId}:followers`, followerId)
+    .rpush(`user:${followerId}:following`, followeeId)
+    .exec()
+  }
+
+  async unFollowUser(followerId, followeeId) {
+    await this.redisClient
+    .rpush(`user:${followerId}:following`, followeeId)
+    .exec();
+  }
+
 }
 
 class MongoDBMessageStorage extends MessageStorage {
@@ -59,6 +76,41 @@ class MongoDBMessageStorage extends MessageStorage {
     return this._findMessagesForUserFromDB(userId);
   }
 
+  async _followUser(followerId, followeeId) {
+    Promise.all([
+      await this.mongoClient.db('socialdb')
+      .collection('followers')
+      .insertOne({
+        followeeId: ObjectId(followeeId),
+        followeeCollection: 'users',
+        followerId: ObjectId(followerId),
+        followerCollection: 'users',
+        start: new Date(),
+        end: new Date(),
+        last: new Date(),
+      }),
+      await this.mongoClient.db('socialdb')
+      .collection('following')
+      .insertOne({
+        followeeId: ObjectId(followeeId),
+        followeeCollection: 'users',
+        followerId: ObjectId(followerId),
+        followerCollection: 'users',
+        start: new Date(),
+        end: new Date(),
+        last: new Date(),
+      })
+    ])
+  }
+
+  async _unFollowUser(followerId, followeeId) {
+    await this.mongoClient.db('socialdb')
+    .collection('following').deleteOne({
+      followerId: ObjectId(followerId),
+      followeeId: ObjectId(followeeId) 
+    })
+  }
+
   async _saveMessagesToDB(message){
     await this.mongoClient.db('socialdb').collection('conversations').insertOne({
       ...message,
@@ -72,6 +124,14 @@ class MongoDBMessageStorage extends MessageStorage {
     .collection('conversations')
     .find({ $or: [{ from: ObjectId(userId) }, {to: ObjectId(userId) }] })
     .toArray();
+  }
+
+  async followUser(followerId, followeeId) {
+    return this._followUser(followerId, followeeId);
+  }
+
+  async unFollowerUser(followerId, followeeId) {
+    return this._unFollowUser(followerId, followeeId);
   }
 }
 
