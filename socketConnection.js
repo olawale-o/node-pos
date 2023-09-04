@@ -102,19 +102,6 @@ module.exports = function(IO, redisClient) {
     const users = []
     const userMessages = await getMessagesForUserFromRedisStore(socket.userId) // getMessagesForUser(socket.userId) //await getMessagesForUserFromMongoDB(socket.userId)
     const dbUsers = await fetchUsersFromDB(socket.userId)
-    // find all connected users except the current user
-    // const s = await redisSession.findSessions();
-    // s.forEach((session) => {
-    //   if (session.userId !== socket.userId) {
-    //     users.push({
-    //       userId: session.userId,
-    //       username: session.username,
-    //       online: session.online,
-    //       _id: session._id,
-    //       messages: userMessages.get(session.userId) || [],
-    //     })
-    //   }
-    // })
 
     for (const user of dbUsers) {
       const u = await redisSession.findSession(user._id.toString())
@@ -161,7 +148,6 @@ module.exports = function(IO, redisClient) {
         username: socket.username
       }
       socket.to(to).emit("private message", newMessage);
-      // memoryStorage.saveMessages(newMessage);
       await redisMessageStorage.saveMessage({ from: ObjectId(socket.userId), to: ObjectId(to), text });
       await mongoStorage.saveMessage({ from: ObjectId(socket.userId), to: ObjectId(to), text })
     })
@@ -183,6 +169,23 @@ module.exports = function(IO, redisClient) {
         messages: userMessages.get(_id) || []
       })
     });
+
+    socket.on('follow', async (followee, followerId) => {
+      await socket.to(followee?._id).emit('follow', followerId);
+      console.log({
+        followeeId: followee?._id,
+        followerId,
+      })
+      await redisMessageStorage.followUser(followerId, followee?._id);
+      await mongoStorage.followUser(followerId, followee?._id);
+    });
+
+    socket.on('unfollow', async (followee, followerId) => {
+      await socket.to(followee?._id).emit('unfollow', followerId);
+      await redisMessageStorage.unFollowerUser(followerId, followee?._id);
+      await mongoStorage.unFollowerUser(followerId, followee?._id);
+    });
+
     socket.on('disconnect', async () => {
       const matchingSockets = await IO.in(socket.userId).allSockets();
       const isDisconnected = matchingSockets.size === 0;
@@ -194,7 +197,7 @@ module.exports = function(IO, redisClient) {
         await redisSession.saveSession(socket.sessionId, {
           userId: socket.userId,
           username: socket.username,
-          online: socket.online,
+          online: false,
           _id: socket._id
         })
       }
