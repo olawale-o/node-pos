@@ -7,6 +7,8 @@ const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const User = client.db('socialdb').collection('users');
 const Friend = client.db('socialdb').collection('friends');
+const Follower = client.db('socialdb').collection('followers');
+const Following = client.db('socialdb').collection('following');
 
 module.exports = function(IO) {
 
@@ -23,19 +25,6 @@ module.exports = function(IO) {
     } catch (error) {
       console.log(error);
     }  
-  });
-  
-  router.get('/friends/:id', async (req, res, next) => {
-    const { id } = req.params;
-    console.log(id);
-    try {
-      const users = await User.find({ _id: { $ne: ObjectID(id) } }).toArray();
-      return res.status(200).json({
-        users,
-      })
-    } catch (error) {
-      console.log(error);
-    }
   });
   
   router.post('/login', async (req, res, next) => {
@@ -67,6 +56,64 @@ module.exports = function(IO) {
       const friend = await Friend.insertOne(newFriend);
       return res.status(200).json({
         friend,
+      })
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
+  router.get('/:id/friends', async (req, res, next) => {
+    const { id } = req.params;
+    try {
+      const users = await User.find({ _id: { $ne: ObjectID(id) } }).toArray();
+      return res.status(200).json({
+        users,
+      })
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
+  router.get('/:id/followers', async (req, res, next) => {
+    const { id } = req.params;
+    try {
+      const followers = await Follower.aggregate([
+        { $match: { followeeId: ObjectID(id) } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "followerId",
+            foreignField: "_id",
+            as: "connection"
+          }
+        },
+        { $unwind: { path: "$connection" } },
+      ]).toArray();
+      return res.status(200).json({
+        followers,
+      })
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
+  router.get('/:id/following', async (req, res, next) => {
+    const { id } = req.params;
+    try {
+      const following = await Following.aggregate([
+        { $match: { followerId: ObjectID(id) } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "followeeId",
+            foreignField: "_id",
+            as: "connection"
+          }
+        },
+        { $unwind: { path: "$connection" } },
+      ]).toArray();
+      return res.status(200).json({
+        following,
       })
     } catch (error) {
       console.log(error);

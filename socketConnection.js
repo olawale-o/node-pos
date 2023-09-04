@@ -172,10 +172,6 @@ module.exports = function(IO, redisClient) {
 
     socket.on('follow', async (followee, followerId) => {
       await socket.to(followee?._id).emit('follow', followerId);
-      console.log({
-        followeeId: followee?._id,
-        followerId,
-      })
       await redisMessageStorage.followUser(followerId, followee?._id);
       await mongoStorage.followUser(followerId, followee?._id);
     });
