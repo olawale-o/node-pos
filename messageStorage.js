@@ -56,7 +56,7 @@ class RedisMessageStorage extends MessageStorage {
 
   async unFollowUser(followerId, followeeId) {
     await this.redisClient
-    .rpush(`user:${followerId}:following`, followeeId)
+    .rpop(`user:${followerId}:following`, followeeId)
     .exec();
   }
 
@@ -104,11 +104,18 @@ class MongoDBMessageStorage extends MessageStorage {
   }
 
   async _unFollowUser(followerId, followeeId) {
-    await this.mongoClient.db('socialdb')
-    .collection('following').deleteOne({
-      followerId: ObjectId(followerId),
-      followeeId: ObjectId(followeeId) 
-    })
+    Promise.all([
+      this.mongoClient.db('socialdb')
+      .collection('following').deleteOne({
+        followerId: ObjectId(followerId),
+        followeeId: ObjectId(followeeId) 
+      }),
+      this.mongoClient.db('socialdb')
+      .collection('followers').deleteOne({
+        followerId: ObjectId(followerId),
+        followeeId: ObjectId(followeeId) 
+      }),
+    ])
   }
 
   async _saveMessagesToDB(message){
@@ -130,7 +137,7 @@ class MongoDBMessageStorage extends MessageStorage {
     return this._followUser(followerId, followeeId);
   }
 
-  async unFollowerUser(followerId, followeeId) {
+  async unFollowUser(followerId, followeeId) {
     return this._unFollowUser(followerId, followeeId);
   }
 }
