@@ -7,37 +7,14 @@ const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const User = client.db('socialdb').collection('users');
 const Friend = client.db('socialdb').collection('friends');
-const Follower = client.db('socialdb').collection('followers');
-const Following = client.db('socialdb').collection('following');
+
+const handler = require('./handler');
 
 module.exports = function(IO) {
 
-  router.post('/', async (req, res, next) => {
-    const { name, username } = req.body;
-    console.log(name)
-    try {
-      const newUser = { name, username, createdAt: new Date(), updatedAt: new Date(), };
-      const userId = await User.insertOne(newUser);
-      return res.status(200).json({
-        ...newUser,
-        id: userId,
-      })
-    } catch (error) {
-      console.log(error);
-    }  
-  });
+  router.post('/', handler.register);
   
-  router.post('/login', async (req, res, next) => {
-    try {
-      const { username } = req.body;
-      const user = await User.findOne({ username });
-      return res.status(200).json({
-        user,
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  });
+  router.post('/login', handler.register);
   
   router.post('/friends', async (req, res, next) => {
     try {
@@ -74,117 +51,9 @@ module.exports = function(IO) {
     }
   });
 
-  router.get('/:id/followers', async (req, res, next) => {
-    const { id } = req.params;
-    try {
-      const followers = await Follower.aggregate([
-        { $match: { followeeId: ObjectID(id) } },
-        {
-          $lookup: {
-            from: "users",
-            localField: "followerId",
-            foreignField: "_id",
-            as: "connection"
-          }
-        },
-        { $unwind: { path: "$connection" } },
-      ]).toArray();
-      return res.status(200).json({
-        followers,
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  });
+  router.get('/:id/followers', handler.followers);
 
-  router.get('/:id/following', async (req, res, next) => {
-    const { id } = req.params;
-    try {
-      const following = await Following.aggregate([
-        { $match: { followerId: ObjectID(id) } },
-        {
-          $lookup: {
-            from: "users",
-            localField: "followeeId",
-            foreignField: "_id",
-            as: "connection"
-          }
-        },
-        { $unwind: { path: "$connection" } },
-      ]).toArray();
-      return res.status(200).json({
-        following,
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  });
-  
-  router.post('/friends/accept', async (req, res, next) => {
-    try {
-      const { request_id } = req.body;
-  
-      const doc = await Friend.findOneAndUpdate({ _id: ObjectID(request_id) },  { $set: { status: 'accept' } }, { returnNewDocument: true });
-      return res.status(200).json({
-        doc,
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  });
-
-  router.get('/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-      const contacts = await Friend.find({
-        $or: [ { followerId: id }, { followeeId: id } ]
-      }).toArray();
-      return res.status(200).json({
-        contacts,
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  });
-  
-  router.get('/pending', async (req, res, next) => {
-    try {
-      const { q } = req.query;
-      const friends = await Friend.aggregate([
-        { $match: { $and: [ { users: { $in: [ObjectID(q)] } }, {  status: 'request' } ] } },
-        {
-          $lookup: {
-            from: "users",
-            localField: "request.to",
-            foreignField: "_id",
-            as: "recipient"
-          }
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "request.from",
-            foreignField: "_id",
-            as: "requester"
-          }
-        },
-        {
-          $project: {
-            "_id": 1,
-            "status": 1,
-            "request": 1,
-            "recipient": {$first: "$recipient"},
-            "requester": {$first: "$requester"},
-          }
-        }
-      ]).toArray();
-      return res.status(200).json({
-        friends,
-      })
-    } catch (error) {
-      console.log(error);
-    }
-  });
+  router.get('/:id/following', handler.following);
   
   router.get('/suggestion', async (req, res, next) => {
     try {
