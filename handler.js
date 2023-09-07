@@ -26,7 +26,7 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const { username } = req.body;
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username, $comment: "Find user by username" });
     return res.status(200).json({
       user,
     })
@@ -39,16 +39,16 @@ const followers = async (req, res, next) => {
   const { id } = req.params;
   try {
     const followers = await Follower.aggregate([
-      { $match: { followeeId: ObjectID(id) } },
+      { $match: { followeeId: ObjectID(id), $comment: "User follower" } },
       {
         $lookup: {
           from: "users",
           localField: "followerId",
           foreignField: "_id",
-          as: "connection"
+          as: "connection",
         }
       },
-      { $unwind: { path: "$connection" } },
+      { $unwind: { path: "$connection", } },
     ]).toArray();
     return res.status(200).json({
       followers,
@@ -81,9 +81,60 @@ const following = async (req, res, next) => {
   }
 };
 
+const suggestions = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const users = await User.aggregate([ 
+      { 
+        $lookup: { 
+        from: "following", 
+        let: { user_id: "$_id" },
+         pipeline: [ 
+          { $match: { $expr: { $and: [ { $eq: ["$followerId", "$$user_id"] }] } } }], 
+          as: "user_followings"
+        } 
+      }, 
+      { $lookup: { 
+        from: "followers", 
+        let: { user_id: "$_id" }, 
+        pipeline: [ 
+          { $match: { 
+            $expr: { 
+                $and: [
+                  { $eq: ["$followeeId", "$$user_id"] },
+                ]
+              }
+            } 
+          }
+        ], 
+        as: "user_followers" }
+      },
+      {
+        $match: {
+          _id: { $ne: ObjectID(id) },
+        }
+      },
+      {
+        $match: {
+          "user_followings.followeeId": { $ne: ObjectID(id) },
+        }
+      },
+      {
+        $match: {
+          "user_followers.followerId": { $ne: ObjectID(id) },
+        }
+      },
+    ]).toArray();
+    return res.status(200).json({users});
+  } catch(e) {
+    console.log(e)
+  }
+}
+
 module.exports = {
   register,
   login,
   followers,
-  following
+  following,
+  suggestions
 }

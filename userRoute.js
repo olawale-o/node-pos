@@ -14,7 +14,7 @@ module.exports = function(IO) {
 
   router.post('/', handler.register);
   
-  router.post('/login', handler.register);
+  router.post('/login', handler.login);
   
   router.post('/friends', async (req, res, next) => {
     try {
@@ -39,6 +39,18 @@ module.exports = function(IO) {
     }
   });
 
+  router.get('/:id', async (req, res, next) => {
+    const { id } = req.params;
+    try {
+      const contacts = await User.find({ _id: { $ne: ObjectID(id) } }).limit(10).toArray();
+      return res.status(200).json({
+        contacts,
+      })
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
   router.get('/:id/friends', async (req, res, next) => {
     const { id } = req.params;
     try {
@@ -55,98 +67,7 @@ module.exports = function(IO) {
 
   router.get('/:id/following', handler.following);
   
-  router.get('/suggestion', async (req, res, next) => {
-    try {
-      const { q } = req.query;
-      // const suggestions = await Friend.aggregate([
-      //   { $match:  { users: { $nin: [ObjectID(q)] } } },
-      //   {
-      //     $project: {
-      //       "users": 1,
-      //       "_id": 0
-      //     }
-      //   },
-      //   {
-      //     $unwind: "$users"
-      //   },
-      //   {
-      //     $group: {
-      //       _id: "$users",
-      //     }
-      //   },
-      //   {
-      //     $lookup: {
-      //       from: "users",
-      //       localField: "_id",
-      //       foreignField: "_id",
-      //       as: "friend_suggestions"
-      //     }
-      //   },
-      //   {
-      //     $project: {
-      //       suggestion: { $arrayElemAt: [ "$friend_suggestions", 0 ] },
-      //     }
-      //   },
-      //   {
-      //     $replaceRoot: { newRoot: "$suggestion" }
-      //   }
-      // ]).toArray();
-      // const friends = await Friend.aggregate([
-      //   { $match:  { users: { $in: [ObjectID(q)] } } },
-      //   {
-      //     $project: {
-      //       "users": 1,
-      //       "_id": 0
-      //     }
-      //   },
-      //   {
-      //     $project: {
-      //       users: {
-      //         $filter: {
-      //            input: "$users",
-      //            as: "user",
-      //            cond: { $ne: [ "$$user", ObjectID(q) ] }
-      //         }
-      //      }
-      //     },
-      //   },
-      //   {
-      //     $project: {
-      //       user: { $arrayElemAt: [ "$users", 0 ] },
-      //     }
-      //   }
-      // ]).toArray();
-      // const users = await User.aggregate([
-      //   { $match:  { _id:  { $ne: ObjectID(q) } } },
-      // ]).toArray();
-      // const suggestionIds = friends.map((suggestion) => {
-      //   return suggestion.user.toString()
-      // });
-      // const suggestions = users.filter((user) => !suggestionIds.includes(user._id.toString()));
-      
-
-      const friends = await Friend.aggregate([
-        { $match:  { users: { $in: [ObjectID(q)] } } },
-        {
-          $project: {
-            "users": 1,
-            "request": 1,
-            "_id": 0
-          }
-        },
-      ]).toArray();
-      const users = await User.aggregate([
-        { $match:  { _id:  { $ne: ObjectID(q) } } },
-      ]).toArray();
-      const suggestions = friends.map((suggestion) => suggestion.user.toString());
-      return res.status(200).json({friends})
-  
-    } catch (error) {
-      console.log(error);
-    }
-  });
+  router.get('/:id/suggestion', handler.suggestions);
 
   return router;
 }
-
-
