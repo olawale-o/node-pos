@@ -5,15 +5,14 @@ const { MongoClient } = require('mongodb');
 const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const User = client.db('socialdb').collection('users');
-const Follower = client.db('socialdb').collection('followers');
-const Following = client.db('socialdb').collection('following');
 
+const UserService = require('./services/User');
+const FollowerService = require('./services/Follower');
+const FollowingService = require('./services/Following');
 
 const register = async (req, res, next) => {
-  const { name, username } = req.body;
   try {
-    const newUser = { name, username, createdAt: new Date(), updatedAt: new Date(), };
-    const userId = await User.insertOne(newUser);
+    const { newUser, userId } = await UserService.register(req.body);
     return res.status(200).json({
       ...newUser,
       id: userId,
@@ -25,31 +24,17 @@ const register = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { username } = req.body;
-    const user = await User.findOne({ username, $comment: "Find user by username" });
-    return res.status(200).json({
-      user,
-    })
+    const user = await UserService.login(req.body);
+    return res.status(200).json({user,})
   } catch (error) {
     console.log(error);
   }
 };
 
 const followers = async (req, res, next) => {
-  const { id } = req.params;
+  const { userId } = req.params;
   try {
-    const followers = await Follower.aggregate([
-      { $match: { followeeId: ObjectID(id), $comment: "User follower" } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "followerId",
-          foreignField: "_id",
-          as: "connection",
-        }
-      },
-      { $unwind: { path: "$connection", } },
-    ]).toArray();
+    const followers = await FollowerService.followers({ userId })
     return res.status(200).json({
       followers,
     })
@@ -59,20 +44,9 @@ const followers = async (req, res, next) => {
 };
 
 const following = async (req, res, next) => {
-  const { id } = req.params;
+  const { userId } = req.params;
   try {
-    const following = await Following.aggregate([
-      { $match: { followerId: ObjectID(id) } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "followeeId",
-          foreignField: "_id",
-          as: "connection"
-        }
-      },
-      { $unwind: { path: "$connection" } },
-    ]).toArray();
+    const following = await FollowingService.following({ userId })
     return res.status(200).json({
       following,
     })
@@ -83,6 +57,7 @@ const following = async (req, res, next) => {
 
 const suggestions = async (req, res, next) => {
   const { id } = req.params;
+  const { limit, skip } = req.query;
   try {
     const users = await User.aggregate([ 
       { 
@@ -96,7 +71,7 @@ const suggestions = async (req, res, next) => {
       }, 
       { $lookup: { 
         from: "followers", 
-        let: { user_id: "$_id" }, 
+        let: { user_id: "$_id" },
         pipeline: [ 
           { $match: { 
             $expr: { 
@@ -124,6 +99,12 @@ const suggestions = async (req, res, next) => {
           "user_followers.followerId": { $ne: ObjectID(id) },
         }
       },
+      {
+        $skip: parseInt(skip)
+      },
+      {
+        $limit: parseInt(limit),
+      }
     ]).toArray();
     return res.status(200).json({users});
   } catch(e) {

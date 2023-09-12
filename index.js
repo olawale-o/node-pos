@@ -39,7 +39,7 @@ dbConnection(MongoClient)
   console.log(err)
 })
 
-app.use('/api/v1/users', require('./userRoute')(IO));
+app.use('/api/v1/users', require('./routes/user')(IO));
 app.use('/api/v1/conversations', require('./messageRoute')(IO));
 
 app.get('/api', (req, res) => {
