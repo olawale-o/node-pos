@@ -6,7 +6,7 @@ const client = new MongoClient(LOCAL_MONGODB_SINGLESET);
 
 const Following = client.db('socialdb').collection('following');
 
-const followers = async (credentials) => {
+const following = async (credentials) => {
   const { userId } = credentials;
   const users = await Following.aggregate([
     { $match: { followerId: ObjectID(userId), $comment: "User following"  } },
@@ -25,5 +25,5 @@ const followers = async (credentials) => {
 }
 
 module.exports = {
-  followers,
+  following,
 };
