@@ -20,7 +20,6 @@ const followers = async (credentials) => {
     },
     { $unwind: { path: "$connection", } },
   ]).toArray();
-
   return users;
 }
 
