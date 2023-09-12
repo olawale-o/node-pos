@@ -63,9 +63,9 @@ module.exports = function(IO) {
     }
   });
 
-  router.get('/:id/followers', handler.followers);
+  router.get('/:userId/followers', handler.followers);
 
-  router.get('/:id/following', handler.following);
+  router.get('/:userId/following', handler.following);
   
   router.get('/:id/suggestion', handler.suggestions);
 
