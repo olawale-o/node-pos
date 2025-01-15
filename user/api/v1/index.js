@@ -1,7 +1,8 @@
+const handler = require("./handler");
+
 const router = require("express").Router();
 
-router.post("/login", async (req, res, next) => {
-  res.status(200).json({ status: true, route: "login" });
-});
+router.post("/signup", handler.register);
+router.post("/subscribe", handler.subscribeToProduct);
 
 module.exports = router;
