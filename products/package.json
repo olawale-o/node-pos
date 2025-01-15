@@ -4,15 +4,17 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "server": "NODE_ENV=prod nodemon index.js",
-    "dev": "NODE_ENV=dev nodemon index.js"
+    "server": "NODE_ENV=production nodemon index.js",
+    "dev": "NODE_ENV=development nodemon index.js",
+    "db:model:generate": "npx sequelize-cli model:generate --name $npm_config_name --attributes $npm_config_attributes",
+    "db:migrate:dev": "npx sequelize-cli db:migrate",
+    "db:migrate:undo": "npx sequelize-cli db:migrate:undo:all"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@sequelize/core": "^7.0.0-alpha.42",
     "axios": "^1.7.9",
     "body-parser": "^1.20.3",
     "cookie-parser": "^1.4.7",
@@ -20,7 +22,8 @@
     "express": "^4.21.2",
     "http": "^0.0.1-security",
     "http-errors": "^2.0.0",
-    "mysql2": "^3.12.0"
+    "mysql2": "^3.12.0",
+    "sequelize": "^6.37.5"
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.2"
