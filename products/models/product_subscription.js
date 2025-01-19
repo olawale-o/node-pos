@@ -1,7 +1,8 @@
 "use strict";
 const { Model } = require("sequelize");
+const { onProductSubscribersDeleted } = require("../api/v1/jobs");
 module.exports = (sequelize, DataTypes) => {
-  class Product_Subscription extends Model {
+  class ProductSubscription extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -9,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      Product_Subscription.belongsTo(models.Product, {
+      ProductSubscription.belongsTo(models.Product, {
         as: "subscription",
         foreignKey: {
           name: "product_id",
@@ -18,9 +19,18 @@ module.exports = (sequelize, DataTypes) => {
         },
         onDelete: "CASCADE",
       });
+      ProductSubscription.belongsTo(models.User, {
+        as: "product_subscribers",
+        foreignKey: {
+          name: "user_id",
+          type: DataTypes.INTEGER,
+          allowNull: false,
+        },
+        onDelete: "CASCADE",
+      });
     }
   }
-  Product_Subscription.init(
+  ProductSubscription.init(
     {
       id: {
         allowNull: false,
@@ -39,7 +49,7 @@ module.exports = (sequelize, DataTypes) => {
           key: "id",
         },
       },
-      userId: {
+      user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         field: "user_id",
@@ -59,17 +69,17 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: "Product_Subscription",
+      modelName: "ProductSubscription",
       tableName: "products_subscriptions",
       createdAt: "created_at",
       updatedAt: false,
       indexes: [
         {
           unique: true,
-          fields: ["user_id", "proudct_id", "subscribed_at"],
+          fields: ["user_id", "product_id", "subscribed_at"],
         },
       ],
     },
   );
-  return Product_Subscription;
+  return ProductSubscription;
 };

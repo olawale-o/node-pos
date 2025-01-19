@@ -1,5 +1,7 @@
 "use strict";
 const { Model } = require("sequelize");
+const { notifyProductSubscribers } = require("../api/v1/jobs");
+
 module.exports = (sequelize, DataTypes) => {
   class Product extends Model {
     /**
@@ -9,11 +11,17 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      Product.hasMany(models.Product_Subscription, {
+      Product.hasMany(models.ProductSubscription, {
         as: "subscriptions",
         foreignKey: {
           name: "product_id",
         },
+      });
+
+      Product.belongsToMany(models.User, {
+        through: models.ProductSubscription,
+        as: "subscribers",
+        foreignKey: "product_id",
       });
     }
   }
@@ -32,6 +40,10 @@ module.exports = (sequelize, DataTypes) => {
       description: {
         allowNull: false,
         type: DataTypes.STRING,
+      },
+      quantity: {
+        allowNull: false,
+        type: DataTypes.INTEGER,
       },
     },
     {

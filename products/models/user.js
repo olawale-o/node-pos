@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       //   foreignKey: "user_id",
       // });
       User.belongsToMany(models.Product, {
-        through: models.Product_Subscription,
+        through: models.ProductSubscription,
         as: "my_subscriptions",
         foreignKey: "user_id",
       });
