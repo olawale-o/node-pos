@@ -1,5 +1,7 @@
 const db = require("../../../models");
 const { Op } = require("sequelize");
+const { addJob } = require("../jobs/bull");
+const { emailQueue } = require("../jobs/bull/queue");
 
 module.exports = {
   create: async (payload) => {
@@ -13,7 +15,7 @@ module.exports = {
     throw new Error("Unable to create product");
   },
   subscribe: async (payload) => {
-    const product = await db.Product_Subscription.create({
+    const product = await db.ProductSubscription.create({
       ...payload,
     });
 
@@ -28,8 +30,17 @@ module.exports = {
     const updated = await db.Product.update(
       { quantity: payload.data.quantity },
       { where: { id: payload.productId }, individualHooks: true },
+      addJob(
+        emailQueue,
+        {
+          name: "productNotificationMessage",
+          jobData: {
+            productId: payload.productId,
+          },
+        },
+        { removeOnComplete: true },
+      ),
     );
-
     if (updated) {
       return updated;
     }
@@ -40,11 +51,13 @@ module.exports = {
   clearProductSubscribers: async (payload) => {
     const data = [];
     data.push({ user_id: payload.user_id, productId: payload.productId });
-    const isDeleted = await db.Product_Subscription.destroy({
+    const isDeleted = await db.ProductSubscription.destroy({
       where: {
         [Op.or]: data,
       },
+      individualHooks: true,
     });
+    console.log({ isDeleted });
   },
 
   getProductPayload: async (productId, userId, event) => {
