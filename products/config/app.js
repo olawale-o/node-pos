@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const errorHandler = require("../middleware/errorHandler");
 const workers = require("../api/v1/jobs/bull/worker");
+const service = require("../api/v1/service");
 
 const app = express();
 
@@ -12,8 +13,9 @@ app.use(cookieParser());
 app.use(cors());
 
 workers.forEach((worker) => {
-  worker.on("completed", (job) => {
+  worker.on("completed", async (job) => {
     console.log(`${job.id} has completed!`);
+    service.clearProductSubscribers(job.data.jobData);
   });
 
   worker.on("failed", (job, err) => {
