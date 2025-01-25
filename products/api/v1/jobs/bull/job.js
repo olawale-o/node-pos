@@ -18,6 +18,7 @@ const productNotificationMessage = async (job) => {
       as: "product_subscribers",
       model: db.User,
     },
+    limit: 10,
   });
   rows.forEach((row, index) => {
     sendMail(

@@ -1,7 +1,6 @@
 const db = require("../../../models");
 const { Op } = require("sequelize");
-const { addJob } = require("../jobs/bull");
-const { emailQueue } = require("../jobs/bull/queue");
+const { produce } = require("../../../kafka/producer");
 
 module.exports = {
   create: async (payload) => {
@@ -30,16 +29,10 @@ module.exports = {
     const updated = await db.Product.update(
       { quantity: payload.data.quantity },
       { where: { id: payload.productId }, individualHooks: true },
-      addJob(
-        emailQueue,
-        {
-          name: "productNotificationMessage",
-          jobData: {
-            productId: payload.productId,
-          },
-        },
-        { removeOnComplete: true },
-      ),
+      await produce({
+        topic: "email-topic",
+        message: JSON.stringify({ productId: payload.productId }),
+      }),
     );
     if (updated) {
       return updated;
