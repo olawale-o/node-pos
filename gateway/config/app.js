@@ -10,5 +10,6 @@ app.use(cors());
 
 app.use("/api/users", proxy("http://localhost:5001"));
 app.use("/api/products", proxy("http://localhost:5002"));
+app.use("/api/notifications", proxy("http://localhost:5003"));
 
 module.exports = app;
