@@ -13,8 +13,8 @@ const createProduct = () => {
     name: faker.commerce.product(),
     description: faker.commerce.productDescription(),
     quantity: 1,
-    createdAt: faker.date.anytime(),
-    updatedAt: faker.date.anytime(),
+    created_at: faker.date.anytime(),
+    updated_at: faker.date.anytime(),
   };
 };
 
