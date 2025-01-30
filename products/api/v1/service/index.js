@@ -1,6 +1,7 @@
 const db = require("../../../models");
 const { Op } = require("sequelize");
-const { produce } = require("../../../kafka/producer");
+const { emailQueue } = require("../jobs/bull/queue");
+const { addJob } = require("../jobs/bull");
 
 module.exports = {
   create: async (payload) => {
@@ -28,11 +29,17 @@ module.exports = {
   update: async (payload) => {
     const updated = await db.Product.update(
       { quantity: payload.data.quantity },
-      { where: { id: payload.productId }, individualHooks: true },
-      await produce({
-        topic: "email-topic",
-        message: JSON.stringify({ productId: payload.productId }),
-      }),
+      { where: { id: payload.productId } },
+    );
+    await addJob(
+      emailQueue,
+      {
+        name: "productNotificationMessage",
+        jobData: {
+          productId: payload.productId,
+        },
+      },
+      { removeOnComplete: true },
     );
     if (updated) {
       return updated;
@@ -43,7 +50,7 @@ module.exports = {
 
   clearProductSubscribers: async (payload) => {
     const data = [];
-    data.push({ user_id: payload.user_id, productId: payload.productId });
+    data.push({ userid: payload.userId, productId: payload.productId });
     const isDeleted = await db.ProductSubscription.destroy({
       where: {
         [Op.or]: data,
