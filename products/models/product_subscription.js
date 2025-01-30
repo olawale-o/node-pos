@@ -1,6 +1,5 @@
 "use strict";
 const { Model } = require("sequelize");
-const { onProductSubscribersDeleted } = require("../api/v1/jobs");
 module.exports = (sequelize, DataTypes) => {
   class ProductSubscription extends Model {
     /**
@@ -49,7 +48,7 @@ module.exports = (sequelize, DataTypes) => {
           key: "id",
         },
       },
-      user_id: {
+      userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
         field: "user_id",

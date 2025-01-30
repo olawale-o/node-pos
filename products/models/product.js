@@ -1,6 +1,5 @@
 "use strict";
 const { Model } = require("sequelize");
-const { notifyProductSubscribers } = require("../api/v1/jobs");
 
 module.exports = (sequelize, DataTypes) => {
   class Product extends Model {
@@ -17,7 +16,6 @@ module.exports = (sequelize, DataTypes) => {
           name: "product_id",
         },
       });
-
       Product.belongsToMany(models.User, {
         through: models.ProductSubscription,
         as: "subscribers",
@@ -50,6 +48,8 @@ module.exports = (sequelize, DataTypes) => {
       sequelize,
       modelName: "Product",
       tableName: "products",
+      createdAt: "created_at",
+      updatedAt: "updated_at",
     },
   );
   return Product;

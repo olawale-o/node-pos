@@ -9,13 +9,8 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-
-      // User.hasMany(models.Product_Subscription, {
-      //   foreignKey: "user_id",
-      // });
-      User.belongsToMany(models.Product, {
-        through: models.ProductSubscription,
-        as: "my_subscriptions",
+      User.hasMany(models.ScheduledNotifications, {
+        as: "my_notifications",
         foreignKey: "user_id",
       });
     }
