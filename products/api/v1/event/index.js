@@ -5,6 +5,11 @@ module.exports = {
       payload,
     });
   },
+  publishNotificationEvent: async (payload) => {
+    await axios.post("http://localhost:5000/api/notifications/app-event", {
+      payload,
+    });
+  },
   consumeEvent: async (payload) => {
     const { data, event } = payload;
     switch (event) {
