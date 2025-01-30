@@ -1,5 +1,3 @@
-const { emailQueue } = require("../api/v1/jobs/bull/queue");
-const { addJob } = require("../api/v1/jobs/bull");
 const handleMessage =
   (consumer) =>
   async ({ topic, partition, message }) => {
@@ -9,17 +7,7 @@ const handleMessage =
     );
 
     if (topic === "email-topic") {
-      console.log("Handling email notification:", message.value.toString());
-      await addJob(
-        emailQueue,
-        {
-          name: "productNotificationMessage",
-          jobData: {
-            productId: data.productId,
-          },
-        },
-        { removeOnComplete: true },
-      );
+      console.log("Handling email notification:", data.email);
     } else if (topic === "sms-topic") {
       console.log("Handling SMS notification:", message.value.toString());
     } else {
