@@ -25,12 +25,6 @@ module.exports = {
       if (!product) {
         throw new Error("Unable to subscribe to product");
       }
-      // const payload = await service.getProductPayload(
-      //   productId,
-      //   data.userId,
-      //   "PRODUCT_SUBSCRIPTION",
-      // );
-      // await publishUserEvent(payload);
       res.status(200).json({ message: "Thank you for subscribing" });
     } catch (e) {
       console.log(e);

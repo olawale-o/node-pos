@@ -1,5 +1,4 @@
 const db = require("../../../../models");
-const { produce } = require("../../../../kafka/producer");
 const { publishNotificationEvent } = require("../../../v1/event");
 
 const welcomeMessage = (job) => {
