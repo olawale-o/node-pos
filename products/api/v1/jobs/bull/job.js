@@ -1,3 +1,4 @@
+const { produce } = require("../../../../../notifications/kafka/producer");
 const db = require("../../../../models");
 const { publishNotificationEvent } = require("../../../v1/event");
 
@@ -30,12 +31,15 @@ const productNotificationMessage = async (job) => {
         attributes: ["name"],
       },
     ],
-    limit: 1,
+    limit: 5,
   });
   rows.forEach((row, index) => {
-    publishNotificationEvent({
-      event: "PRODUCT_NOTIFICATION",
-      data: {
+    // publishNotificationEvent
+    //    event: "PRODUCT_NOTIFICATION",
+    //
+    produce({
+      topic: "email-topic",
+      message: JSON.stringify({
         // requestId: "abc123",
         // timestamp: "2024-09-17T14:00:00Z",
         notificationType: "promotional", //"transactional" | "promotional" | "alert",
@@ -66,7 +70,7 @@ const productNotificationMessage = async (job) => {
           priority: "medium", // Notification priority (low, medium, high)
           retries: 3, // Number of retry attempts if delivery fails
         },
-      },
+      }),
     });
   });
 };
