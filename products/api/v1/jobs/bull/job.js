@@ -45,7 +45,7 @@ const productNotificationMessage = async (job) => {
           email: row.dataValues.product_subscribers.email,
         },
         message: {
-          subject: "Product arrival",
+          subject: "New Product Arrival",
           body: `We have received new arrival of ${row.dataValues.subscription.name}`,
           attachments: ["https://example.com/invoice123456.pdf"],
           sms: `We have received new arrival of ${row.dataValues.subscription.name}`,
