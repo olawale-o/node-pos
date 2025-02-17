@@ -7,6 +7,7 @@ module.exports = {
     });
   },
   consumeEvent: async (payload) => {
+    console.log("----CONSUMING------");
     const { data, event } = payload;
     switch (event) {
       case "PRODUCT_NOTIFICATION":

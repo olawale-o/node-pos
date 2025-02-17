@@ -31,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
         },
       },
       notificationType: {
-        type: DataTypes.ENUMS("transactional", "promotional", "alerts"),
+        type: DataTypes.ENUM("transactional", "promotional", "alerts"),
         allowNull: false,
         field: "notification_type",
       },
@@ -59,7 +59,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       status: {
         allowNull: false,
-        type: DataTypes.ENUMS("pending", "delievered"),
+        type: DataTypes.ENUM("pending", "delievered"),
         defaultValue: "pending",
       },
       retries_left: {
@@ -68,7 +68,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       priority: {
         allowNull: false,
-        type: DataTypes.ENUMS("high", "medium", "low"),
+        type: DataTypes.ENUM("high", "medium", "low"),
         defaultValue: "high",
       },
     },
