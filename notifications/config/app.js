@@ -5,7 +5,7 @@ const errorHandler = require("../middleware/errorHandler");
 // const workers = require("../api/v1/jobs/bull/worker");
 // const service = require("../api/v1/service");
 
-// const { consume: runConsumer } = require("../kafka/consumer.js");
+const { consume: runConsumer } = require("../kafka/consumer.js");
 
 const app = express();
 
@@ -29,12 +29,12 @@ app.use("/app-event", require("../api/v1/app-event"));
 app.use(require("../api/v1/index"));
 app.use(errorHandler);
 
-// runConsumer()
-//   .then(() => {
-//     console.log("Consumer is running...");
-//   })
-//   .catch((error) => {
-//     console.error("Failed to run kafka consumer", error);
-//   });
+runConsumer()
+  .then(() => {
+    console.log("Consumer is running...");
+  })
+  .catch((error) => {
+    console.error("Failed to run kafka consumer", error);
+  });
 
 module.exports = app;

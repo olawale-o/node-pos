@@ -1,5 +1,13 @@
 // const { emailQueue } = require("../api/v1/jobs/bull/queue");
 // const { addJob } = require("../api/v1/jobs/bull");
+//
+const emailMessageHandler = (data) => {
+  console.log("Handling email notification:", data.recipient.email);
+};
+const smsMessageHandler = (data) => {
+  console.log("Handling SMS notification:", message.value.toString());
+};
+
 const handleMessage =
   (consumer) =>
   async ({ topic, partition, message }) => {
@@ -9,9 +17,9 @@ const handleMessage =
     );
 
     if (topic === "email-topic") {
-      console.log("Handling email notification:", data.email);
+      emailMessageHandler(data);
     } else if (topic === "sms-topic") {
-      console.log("Handling SMS notification:", message.value.toString());
+      smsMessageHandler(data);
     } else {
       console.log("Unknown topic:", topic);
     }
