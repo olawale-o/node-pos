@@ -4,7 +4,7 @@ const cors = require("cors");
 const errorHandler = require("../middleware/errorHandler");
 const workers = require("../api/v1/jobs/bull/worker");
 
-// const { consume: runConsumer } = require("../kafka/consumer.js");
+//const { consume: runConsumer } = require("../kafka/consumer.js");
 
 const app = express();
 
