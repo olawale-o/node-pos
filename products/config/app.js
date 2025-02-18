@@ -3,6 +3,8 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const errorHandler = require("../middleware/errorHandler");
 const workers = require("../api/v1/jobs/bull/worker");
+const os = require("os");
+const { cpuUsage } = require("process");
 
 //const { consume: runConsumer } = require("../kafka/consumer.js");
 
@@ -29,6 +31,13 @@ app.get("/health", (req, res) => {
     responseTime: process.hrtime(),
     message: "OK",
     timestamp: Date.now(),
+    osuptime: os.uptime(),
+    pid: process.pid,
+    memoryUsage: process.memoryUsage().rss,
+    title: process.title,
+    version: process.version,
+    versions: process.versions,
+    cpuUsage: process.cpuUsage(),
   };
 
   try {
@@ -49,5 +58,14 @@ app.use(errorHandler);
 //   .catch((error) => {
 //     console.error("Failed to run kafka consumer", error);
 //   });
+//
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.log("Unhandled Rejection:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
 
 module.exports = app;
