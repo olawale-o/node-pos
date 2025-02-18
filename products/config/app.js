@@ -23,6 +23,21 @@ workers.forEach((worker) => {
   });
 });
 
+app.get("/health", (req, res) => {
+  const healthcheck = {
+    uptime: process.uptime(),
+    responseTime: process.hrtime(),
+    message: "OK",
+    timestamp: Date.now(),
+  };
+
+  try {
+    return res.status(200).json(healthcheck);
+  } catch (e) {
+    healthcheck.message = e;
+    return res.status(503).json(healthcheck);
+  }
+});
 app.use("/app-event", require("../api/v1/app-event"));
 app.use(require("../api/v1/index"));
 app.use(errorHandler);
